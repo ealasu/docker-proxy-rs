@@ -1,0 +1,15 @@
+proxy:
+  image: docker-proxy-rs:latest
+  container_name: proxy-rs
+  #ports:
+    #- '2222:2222'
+  #volumes:
+    #- '${HOME}/.docker/cache-config.json:/etc/docker-proxy/config.json'
+    #- '${HOME}/.docker/cache:/var/docker-proxy-cache'
+    
+curl:
+  image: appropriate/curl
+  links:
+    - proxy
+  command: 'tail -f /dev/null'
+

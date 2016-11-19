@@ -1,0 +1,10 @@
+[package]
+name = "docker-proxy"
+version = "0.1.0"
+
+[dependencies]
+log = "*"
+env_logger = "*"
+iron = { version = "*", features = ["ssl"] }
+hyper = "*"
+utime = "*"
