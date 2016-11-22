@@ -3,8 +3,11 @@ extern crate env_logger;
 extern crate iron;
 extern crate utime;
 extern crate hyper;
+extern crate rustc_serialize;
+extern crate openssl;
 
 mod tee;
+mod config;
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,10 +20,30 @@ use hyper::client::Client;
 use hyper::status::StatusCode;
 
 
+fn insecure_client() -> Client {
+    use hyper::net::{HttpsConnector, OpensslClient};
+    use openssl::ssl::*;
+
+    //let mut ctx = SslContext::new(SslMethod::Sslv23).unwrap();
+    let mut ctx = SslContext::new(SslMethod::Sslv23).unwrap();
+    ctx.set_options(SSL_OP_NO_SSLV2 | SSL_OP_NO_SSLV3 | SSL_OP_NO_COMPRESSION);
+    // cipher list taken from curl:
+    // https://github.com/curl/curl/blob/5bf5f6ebfcede78ef7c2b16daa41c4b7ba266087/lib/vtls/openssl.h#L120
+    ctx.set_cipher_list("ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4@STRENGTH").unwrap();
+    ctx.set_verify(SSL_VERIFY_NONE, Some(verify));
+    ctx.set_verify_depth(0);
+    Client::with_connector(HttpsConnector::new(OpensslClient::new(ctx)))
+}
+
+fn verify(_: bool, _: &openssl::x509::X509StoreContext) -> bool {
+    true
+}
+
 fn main() {
     env_logger::init().unwrap();
 
     let cache_dir = Path::new("/var/docker-cache");
+    let config = config::read("/etc/docker-cache/config.json");
 
     let handler = move |req: &mut Request| {
         let cache_filename = cache_dir.join(
@@ -36,8 +59,11 @@ fn main() {
                         cache_filename)))
         } else {
             info!("miss");
-            let res = Client::new()
-                .get(&format!("{}", req.url))
+            let url = format!("{}/{}", config.target, req.url.path().join("/"));
+            info!("url: {}", url);
+            let client = insecure_client();
+            let res = client
+                .get(&url)
                 .headers(req.headers.clone())
                 .send().unwrap();
             let res_len = match res.headers.get() {

@@ -8,3 +8,5 @@ env_logger = "*"
 iron = { version = "*", features = ["ssl"] }
 hyper = "*"
 utime = "*"
+rustc-serialize = "*"
+openssl = "*"
